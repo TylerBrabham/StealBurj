@@ -1,12 +1,38 @@
 # Tyler Brabham
 # Steel Bridge autcad to FEDEASLAB converter.
-# 
+# Correctly finds the section in which a single group of lines is stated in the dxf file
 
+'''
+Returns list of lines (stored as a 6-tuple, 3 indices for each xyz coordinate of each node).
+Need to convert these to node and connectivity information.
+'''
+def build_section_list(raw_list):
+	#for now just going to use a 6-tuple, should probably make its own class later
+	section = []
+
+	node_count = 0
+	i = 0
+	n = len(raw_list)
+	while i<n:
+		line = raw_list[i]
+
+		if line=='AcDbLine':
+			#then the next 12 indices will be coordinate name and coordinate position
+			node_count += 1
+			acadline = (tuple(raw_list[i+2:i+14:2]), node_count)
+			section.append(acadline)
+			i += 12
+		else:
+			i+=1
+
+	return section
+
+
+#Parses input and determines the first section of LINE data
 rawdxf = open('single_line.dxf')
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
-#
 current_index = 0
 start_index = 0
 end_index = 0
@@ -17,10 +43,10 @@ for line in dxf_list:
 		start_index = current_index
 		wait = False
 
-	if wait:
-		pass
-	else:
-		print current_line
+	# if wait:
+	# 	pass
+	# else:
+	# 	print current_line
 
 	if not(wait) and current_line=='ENDSEC':
 		end_index = current_index
@@ -28,5 +54,7 @@ for line in dxf_list:
 
 	current_index += 1
 
-print start_index, end_index
-print dxf_list[start_index], dxf_list[end_index]
+#Produces the list of lines that make up this first section
+section = build_section_list(dxf_list[start_index:end_index])
+
+print section
