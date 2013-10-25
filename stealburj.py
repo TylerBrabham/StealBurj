@@ -2,7 +2,7 @@
 # Steel Bridge autcad to FEDEASLAB converter.
 # 
 
-rawdxf = open('DSASB_1.dxf')
+rawdxf = open('single_line.dxf')
 
 line_index = 0
 wait = True
