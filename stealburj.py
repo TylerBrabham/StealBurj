@@ -3,19 +3,30 @@
 # 
 
 rawdxf = open('single_line.dxf')
+dxf_list = [line.strip() for line in rawdxf]
+rawdxf.close()
 
-line_index = 0
+#
+current_index = 0
+start_index = 0
+end_index = 0
 wait = True
-for line in rawdxf:
+for line in dxf_list:
 	current_line = line.strip()
-	if wait and current_line=='AcDbEntity':
+	if wait and current_line=='LINE':
+		start_index = current_index
 		wait = False
 
 	if wait:
 		pass
 	else:
-		print line
+		print current_line
 
-	line_index += 1
+	if not(wait) and current_line=='ENDSEC':
+		end_index = current_index
+		break
 
-rawdxf.close()
+	current_index += 1
+
+print start_index, end_index
+print dxf_list[start_index], dxf_list[end_index]
