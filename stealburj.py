@@ -3,6 +3,13 @@
 # Correctly finds the section in which a single group of lines is stated in the dxf file
 
 '''
+TODO
+
+Should probably make a lookup table for each xyz coordinate, so that I can quickly
+look up node number. This should help when converting the file to MATLAB script.
+'''
+
+'''
 Returns list of lines (stored as a 6-tuple, 3 indices for each xyz coordinate of each node).
 Need to convert these to node and connectivity information.
 '''
@@ -29,7 +36,7 @@ def build_section_list(raw_list):
 
 
 #Parses input and determines the first section of LINE data
-rawdxf = open('single_line.dxf')
+rawdxf = open('DSASB_1.dxf')
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
