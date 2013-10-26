@@ -10,14 +10,16 @@ look up node number. This should help when converting the file to MATLAB script.
 '''
 
 '''
-Returns list of lines (stored as a 6-tuple, 3 indices for each xyz coordinate of each node).
-Need to convert these to node and connectivity information.
+Returns nodes and connection information, both as tables
 '''
-def build_section_list(raw_list):
+def build_connection_list(raw_list):
 	#for now just going to use a 6-tuple, should probably make its own class later
 	section = []
 
 	node_count = 0
+	nodes = {}
+	connections = {}
+	conn_count = 0
 	i = 0
 	n = len(raw_list)
 	while i<n:
@@ -25,15 +27,70 @@ def build_section_list(raw_list):
 
 		if line=='AcDbLine':
 			#then the next 12 indices will be coordinate name and coordinate position
-			node_count += 1
-			acadline = (tuple(raw_list[i+2:i+14:2]), node_count)
-			section.append(acadline)
+			(x1,y1,z1,x2,y2,z2) = tuple(raw_list[i+2:i+14:2])
+
+			#Determine if either of the two nodes have been used before. Else, increment node number
+			if (x1,y1,z1) in nodes:
+				node1 = nodes[(x1,y1,z1)]
+			else:
+				node_count += 1
+				node1 = node_count
+				nodes[(x1,y1,z1)] = node1
+				connections[node1] = [] #list of connections
+
+			if (x2,y2,z2) in nodes:
+				node2 = nodes[(x2,y2,z2)]
+			else:
+				node_count += 1
+				node2 = node_count
+				nodes[(x2,y2,z2)] = node2
+				connections[node2] = [] #list of connections
+
+			#connect the two nodes together in the connection table
+			node_list = connections[node1]
+			node_list.append(node2)
+			connections[node1] = node_list #this might not be necessary
+
+			#connect the second node to the first node as well. Might not be necessary
+			# node_list = connections[node2]
+			# node_list.append(node1)
+			# connections[node2] = node_list
+
 			i += 12
+			conn_count += 1
 		else:
 			i+=1
 
-	return section
+	return (nodes,connections,conn_count)
 
+'''
+'''
+def write_fedeaslab_script(nodes,connections,conn_count):
+	output = open('testfile.m','w+')
+
+	#clear memory 
+	output.write('CleanStart;\n\n')
+
+	#First create the XYZ table. One for each node
+	n = len(nodes)
+	output.write('XYZ = zeroes('+str(n)+',3)\n')
+
+	for (x,y,z) in nodes:
+		index = nodes[(x,y,z)]
+		output.write('XYZ('+str(index)+',:) = ['+str(x)+','+str(y)+','+str(z)+'];\n')
+
+	output.write('\n')
+
+	#Now create the connection table.
+	count = 1
+	output.write('CON = zeros('+str(conn_count)+',2)\n')
+	for node in connections:
+		connect_list = connections[node]
+		for drain in connect_list:
+			output.write('CON('+str(count)+',:) = ['+str(node)+','+str(drain)+'];\n')
+			count += 1
+
+	output.close()
 
 #Parses input and determines the first section of LINE data
 rawdxf = open('DSASB_1.dxf')
@@ -56,12 +113,17 @@ for line in dxf_list:
 	# 	print current_line
 
 	if not(wait) and current_line=='ENDSEC':
+		#end section, reset process to the next line and create this section
 		end_index = current_index
 		break
 
 	current_index += 1
 
 #Produces the list of lines that make up this first section
-section = build_section_list(dxf_list[start_index:end_index])
+(nodes,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
 
-print section
+#produces matlab script to generate the structure in FEDEASLAB
+write_fedeaslab_script(nodes,connections,conn_count)
+
+print nodes,
+print connections
