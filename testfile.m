@@ -769,3 +769,10 @@ CON(491,:) = [269,267];
 CON(492,:) = [270,271];
 CON(493,:) = [271,272];
 CON(494,:) = [272,28];
+
+BOUN = ones(494,2);
+BOUN(1,:) = [1, 1]
+
+[ElemName{1:494}] = deal('DeckTruss');
+
+Model = Create_SimpleModel(XYZ,CON,BOUN,ElemName);

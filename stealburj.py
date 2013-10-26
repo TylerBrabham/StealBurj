@@ -64,6 +64,9 @@ def build_connection_list(raw_list):
 	return (nodes,connections,conn_count)
 
 '''
+Takes in the nodes as a dict, connections as a dict, and connection count
+and generates the .m file with format expected by FEDEASLab. No Special 
+information right now like boundary conditions
 '''
 def write_fedeaslab_script(nodes,connections,conn_count):
 	output = open('testfile.m','w+')
@@ -89,6 +92,20 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 		for drain in connect_list:
 			output.write('CON('+str(count)+',:) = ['+str(node)+','+str(drain)+'];\n')
 			count += 1
+
+	output.write('\n')
+
+	#create boundary information for nodes.
+	output.write('BOUN = ones('+str(conn_count)+',2);\n')
+	output.write('BOUN(1,:) = [1, 1]\n')
+	output.write('\n')
+
+	#create element name 
+	output.write('[ElemName{1:'+str(conn_count)+'}] = deal('+"'DeckTruss'"+');\n')
+	output.write('\n')
+
+	#create the model
+	output.write('Model = Create_SimpleModel(XYZ,CON,BOUN,ElemName);\n')
 
 	output.close()
 
