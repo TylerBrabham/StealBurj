@@ -7,6 +7,13 @@ TODO
 
 Should probably make a lookup table for each xyz coordinate, so that I can quickly
 look up node number. This should help when converting the file to MATLAB script.
+
+Boundary is per node not per connection
+
+Remove layer 0 and any other guide layers
+
+Program to determine extra connections not specified in autocad due to lines being 
+within some small tolerance of each other
 '''
 
 '''
@@ -76,7 +83,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 
 	#First create the XYZ table. One for each node
 	n = len(nodes)
-	output.write('XYZ = zeroes('+str(n)+',3)\n')
+	output.write('XYZ = zeros('+str(n)+',3)\n')
 
 	for (x,y,z) in nodes:
 		index = nodes[(x,y,z)]
@@ -110,7 +117,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 	output.close()
 
 #Parses input and determines the first section of LINE data
-rawdxf = open('DSASB_1.dxf')
+rawdxf = open('small_bridge.dxf')
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
