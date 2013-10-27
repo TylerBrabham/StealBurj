@@ -1,6 +1,7 @@
 # Tyler Brabham
-# Steel Bridge autcad to FEDEASLAB converter.
+# Steel Bridge autocad to FEDEASLAB converter.
 # Correctly finds the section in which a single group of lines is stated in the dxf file
+# 
 
 '''
 TODO
@@ -17,6 +18,7 @@ within some small tolerance of each other
 '''
 
 import math
+import sys
 
 '''
 Returns nodes and connection information, both as tables
@@ -63,11 +65,6 @@ def build_connection_list(raw_list):
 			node_list.append(node2)
 			connections[node1] = node_list #this might not be necessary
 
-			#connect the second node to the first node as well. Might not be necessary
-			# node_list = connections[node2]
-			# node_list.append(node1)
-			# connections[node2] = node_list
-
 			i += 12
 			conn_count += 1
 		else:
@@ -86,74 +83,80 @@ the linear equation. May need to do a kind of tolerance check instead.
 def nodes_from_intersection(nodes,indices,connections):
 	#for each connection check all nodes that might pass through the line
 	#continue the process until no change is made
+	tol = .000001
+	change = True
+
+	#count of new connections made
 	count = 0
-	other = 0
+	while change:
+		#change back to True if find a new connection on this iteraton
+		change = False
 
-	new_connections = {}
-	for key in connections:
-		new_connections[key] = []
+		new_connections = {}
+		for key in connections:
+			new_connections[key] = []
 
-	for source in connections:
-		conn_list = connections[source]
-		(x1,y1,z1) = indices[source]
+		for source in connections:
+			conn_list = connections[source]
+			(x1,y1,z1) = indices[source]
 
-		x1 = float(x1)
-		y1 = float(y1)
-		z1 = float(z1)
+			x1 = float(x1)
+			y1 = float(y1)
+			z1 = float(z1)
 
-		#try each connection to this node
-		for drain in conn_list:
-			(x2,y2,z2) = indices[drain]
+			#try each connection to this node
+			for drain in conn_list:
+				(x2,y2,z2) = indices[drain]
 
-			x2 = float(x2)
-			y2 = float(y2)
-			z2 = float(z2)
+				x2 = float(x2)
+				y2 = float(y2)
+				z2 = float(z2)
 
-			vec1 = (x2-x1,y2-y1,z2-z1)
+				vec1 = (x2-x1,y2-y1,z2-z1)
 
-			#normalize
-			v1 = (0,0,0)
-			norm1 = vec1[0]*vec1[0]+vec1[1]*vec1[1]+vec1[2]*vec1[2]
-			if norm1>0.0:
-				length1 = math.sqrt(norm1)
-				v1 = (vec1[0]/length1,vec1[1]/length1,vec1[2]/length1)
+				#normalize
+				v1 = (0,0,0)
+				norm1 = vec1[0]*vec1[0]+vec1[1]*vec1[1]+vec1[2]*vec1[2]
+				if norm1>0.0:
+					length1 = math.sqrt(norm1)
+					v1 = (vec1[0]/length1,vec1[1]/length1,vec1[2]/length1)
 
-			#see if any intermediate nodes satisfy the equation of the line. If so, find
-			#the closest one!
-			min_len = float('inf')
-			closest_node = None
-			intersection = False
-			for node in nodes:
-				(x,y,z) = (float(node[0]),float(node[1]),float(node[2]))
-				vec2 = (x-x1,y-y1,z-z1)
+				#see if any intermediate nodes satisfy the equation of the line. If so, find
+				#the closest one!
+				min_len = float('inf')
+				closest_node = None
+				intersection = False
+				for node in nodes:
+					(x,y,z) = (float(node[0]),float(node[1]),float(node[2]))
+					vec2 = (x-x1,y-y1,z-z1)
 
-				v2 = (0,0,0)
-				norm2 = vec2[0]*vec2[0]+vec2[1]*vec2[1]+vec2[2]*vec2[2]
-				if norm2>0.0:
-					length2 = math.sqrt(norm2)
-					v2 = (vec2[0]/length2,vec2[1]/length2,vec2[2]/length2)
+					v2 = (0,0,0)
+					norm2 = vec2[0]*vec2[0]+vec2[1]*vec2[1]+vec2[2]*vec2[2]
+					if norm2>0.0:
+						length2 = math.sqrt(norm2)
+						v2 = (vec2[0]/length2,vec2[1]/length2,vec2[2]/length2)
 
-				#check dot prod is 1 and then update node connections if it is.
-				dotprod = v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]
-				if dotprod==1.0 and length2<length1 and length2<min_len:
-					#then this new node is closer than the previous node, so it should
-					#form a connection.
-					intersection = True
-					min_len = length2
-					closest_node = node
+					#check dot prod is 1 and then update node connections if it is.
+					dotprod = v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]
+					if abs(1.0-dotprod)<tol and length2<length1 and length2<min_len:
+						#then this new node is closer than the previous node, so it should
+						#form a connection.
+						intersection = True
+						min_len = length2
+						closest_node = node
 
-			#Split current connection in two. source->closest_node, closest_node->drain
-			if not(intersection):
-				other += 1
-				new_list = new_connections[source]
-				new_list.append(drain)
-				new_connections[source] = new_list
-			else:
-				count += 1
-				new_connections[source].append(nodes[closest_node])
-				new_connections[nodes[closest_node]].append(drain)
-	connections = new_connections
-	return (new_connections,count)
+				#Split current connection in two. source->closest_node, closest_node->drain
+				if not(intersection):
+					new_list = new_connections[source]
+					new_list.append(drain)
+					new_connections[source] = new_list
+				else:
+					change = True
+					count += 1
+					new_connections[source].append(nodes[closest_node])
+					new_connections[nodes[closest_node]].append(drain)
+		connections = new_connections
+	return (connections,count)
 
 '''
 Takes in the nodes as a dict, connections as a dict, and connection count
@@ -188,7 +191,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 	output.write('\n')
 
 	#create boundary information for nodes.
-	output.write('BOUN = ones('+str(conn_count)+',2);\n')
+	output.write('BOUN = ones('+str(n)+',3);\n')
 	output.write('BOUN(1,:) = [1, 1]\n')
 	output.write('\n')
 
@@ -202,7 +205,10 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 	output.close()
 
 #Parses input and determines the first section of LINE data
-rawdxf = open('small_bridge.dxf')
+if (sys.argv[1]=='-i'):
+	filename = sys.argv[2]
+
+rawdxf = open(filename+'.dxf')
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
@@ -215,11 +221,6 @@ for line in dxf_list:
 	if wait and current_line=='LINE':
 		start_index = current_index
 		wait = False
-
-	# if wait:
-	# 	pass
-	# else:
-	# 	print current_line
 
 	if not(wait) and current_line=='ENDSEC':
 		#end section, reset process to the next line and create this section
