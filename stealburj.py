@@ -13,8 +13,15 @@ Boundary is per node not per connection
 
 Remove layer 0 and any other guide layers
 
-Program to determine extra connections not specified in autocad due to lines being 
+Function to determine extra connections not specified in autocad due to lines being 
 within some small tolerance of each other
+
+Function to import individual layers at a time, or at least to organize and label 
+layers near each other in the .m file.
+
+Update the BOUN matrix creation
+
+input output for filenames
 '''
 
 import math
