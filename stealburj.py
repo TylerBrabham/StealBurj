@@ -16,6 +16,8 @@ Program to determine extra connections not specified in autocad due to lines bei
 within some small tolerance of each other
 '''
 
+import math
+
 '''
 Returns nodes and connection information, both as tables
 '''
@@ -25,6 +27,7 @@ def build_connection_list(raw_list):
 
 	node_count = 0
 	nodes = {}
+	indices = {}
 	connections = {}
 	conn_count = 0
 	i = 0
@@ -43,6 +46,7 @@ def build_connection_list(raw_list):
 				node_count += 1
 				node1 = node_count
 				nodes[(x1,y1,z1)] = node1
+				indices[node1] = (x1,y1,z1)
 				connections[node1] = [] #list of connections
 
 			if (x2,y2,z2) in nodes:
@@ -51,6 +55,7 @@ def build_connection_list(raw_list):
 				node_count += 1
 				node2 = node_count
 				nodes[(x2,y2,z2)] = node2
+				indices[node2] = (x2,y2,z2)
 				connections[node2] = [] #list of connections
 
 			#connect the two nodes together in the connection table
@@ -68,7 +73,62 @@ def build_connection_list(raw_list):
 		else:
 			i+=1
 
-	return (nodes,connections,conn_count)
+	return (nodes,indices,connections,conn_count)
+
+'''
+Interpolates the line between nodes to look for any other connections that need to
+be added. If it finds extra connections, it breaks the current connection and makes
+two new ones. The process does not require the creation of any new nodes. Currently 
+making the assumption that any node that crosses the path of a connection will satisfy
+the linear equation. May need to do a kind of tolerance check instead.
+
+'''
+def nodes_from_intersection(nodes,indices,connections):
+	#for each connection check all nodes that might pass through the line
+	#continue the process until no change is made
+	count = 0
+	for source in connections:
+		conn_list = connections[source]
+		(x1,y1,z1) = indices[source]
+
+		x1 = float(x1)
+		y1 = float(y1)
+		z1 = float(z1)
+
+		#try each connection to this node
+		for drain in conn_list:
+			(x2,y2,z2) = indices[drain]
+
+			x2 = float(x2)
+			y2 = float(y2)
+			z2 = float(z2)
+
+			vec1 = (x2-x1,y2-y1,z2-z1)
+
+			#normalize
+			v1 = (0,0,0)
+			norm1 = vec1[0]*vec1[0]+vec1[1]*vec1[1]+vec1[2]*vec1[2]
+			if norm1>0.0:
+				length1 = math.sqrt(norm1)
+				v1 = (vec1[0]/length1,vec1[1]/length1,vec1[2]/length1)
+
+			#see if any intermediate nodes satisfy the equation of the line
+			for node in nodes:
+				(x,y,z) = (float(node[0]),float(node[1]),float(node[2]))
+				vec2 = (x-x1,y-y1,z-z1)
+
+				v2 = (0,0,0)
+				norm2 = vec2[0]*vec2[0]+vec2[1]*vec2[1]+vec2[2]*vec2[2]
+				if norm2>0.0:
+					length2 = math.sqrt(norm2)
+					v2 = (vec2[0]/length2,vec2[1]/length2,vec2[2]/length2)
+
+				#check dot prod is one
+				dotprod = v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]
+
+				if dotprod==1 and length2<length1:
+					count += 1
+	print count
 
 '''
 Takes in the nodes as a dict, connections as a dict, and connection count
@@ -144,10 +204,10 @@ for line in dxf_list:
 	current_index += 1
 
 #Produces the list of lines that make up this first section
-(nodes,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
+(nodes,indices,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
+
+#Add intermediate connections if there are any
+nodes_from_intersection(nodes,indices,connections)
 
 #produces matlab script to generate the structure in FEDEASLAB
 write_fedeaslab_script(nodes,connections,conn_count)
-
-print nodes,
-print connections
