@@ -87,6 +87,12 @@ def nodes_from_intersection(nodes,indices,connections):
 	#for each connection check all nodes that might pass through the line
 	#continue the process until no change is made
 	count = 0
+	other = 0
+
+	new_connections = {}
+	for key in connections:
+		new_connections[key] = []
+
 	for source in connections:
 		conn_list = connections[source]
 		(x1,y1,z1) = indices[source]
@@ -112,7 +118,11 @@ def nodes_from_intersection(nodes,indices,connections):
 				length1 = math.sqrt(norm1)
 				v1 = (vec1[0]/length1,vec1[1]/length1,vec1[2]/length1)
 
-			#see if any intermediate nodes satisfy the equation of the line
+			#see if any intermediate nodes satisfy the equation of the line. If so, find
+			#the closest one!
+			min_len = float('inf')
+			closest_node = None
+			intersection = False
 			for node in nodes:
 				(x,y,z) = (float(node[0]),float(node[1]),float(node[2]))
 				vec2 = (x-x1,y-y1,z-z1)
@@ -123,12 +133,27 @@ def nodes_from_intersection(nodes,indices,connections):
 					length2 = math.sqrt(norm2)
 					v2 = (vec2[0]/length2,vec2[1]/length2,vec2[2]/length2)
 
-				#check dot prod is one
+				#check dot prod is 1 and then update node connections if it is.
 				dotprod = v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]
+				if dotprod==1.0 and length2<length1 and length2<min_len:
+					#then this new node is closer than the previous node, so it should
+					#form a connection.
+					intersection = True
+					min_len = length2
+					closest_node = node
 
-				if dotprod==1 and length2<length1:
-					count += 1
-	print count
+			#Split current connection in two. source->closest_node, closest_node->drain
+			if not(intersection):
+				other += 1
+				new_list = new_connections[source]
+				new_list.append(drain)
+				new_connections[source] = new_list
+			else:
+				count += 1
+				new_connections[source].append(nodes[closest_node])
+				new_connections[nodes[closest_node]].append(drain)
+	connections = new_connections
+	return (new_connections,count)
 
 '''
 Takes in the nodes as a dict, connections as a dict, and connection count
@@ -168,7 +193,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 	output.write('\n')
 
 	#create element name 
-	output.write('[ElemName{1:'+str(conn_count)+'}] = deal('+"'DeckTruss'"+');\n')
+	output.write('[ElemName{1:'+str(conn_count)+'}] = deal('+"'Truss'"+');\n')
 	output.write('\n')
 
 	#create the model
@@ -207,7 +232,7 @@ for line in dxf_list:
 (nodes,indices,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
 
 #Add intermediate connections if there are any
-nodes_from_intersection(nodes,indices,connections)
+(connections,extra_count) = nodes_from_intersection(nodes,indices,connections)
 
 #produces matlab script to generate the structure in FEDEASLAB
-write_fedeaslab_script(nodes,connections,conn_count)
+write_fedeaslab_script(nodes,connections,conn_count+extra_count)
