@@ -22,6 +22,8 @@ layers near each other in the .m file.
 Update the BOUN matrix creation
 
 input output for filenames
+
+store coordinates as floats instead of strings to reduce casting
 '''
 
 import math
@@ -199,7 +201,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 
 	#create boundary information for nodes.
 	output.write('BOUN = ones('+str(n)+',3);\n')
-	output.write('BOUN(1,:) = [1, 1]\n')
+	output.write('BOUN(1,:) = [1, 1, 1]\n')
 	output.write('\n')
 
 	#create element name 
