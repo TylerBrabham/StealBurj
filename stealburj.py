@@ -24,6 +24,8 @@ Update the BOUN matrix creation
 input output for filenames
 
 store coordinates as floats instead of strings to reduce casting
+
+Add error messages when receiving bad input
 '''
 
 import math
@@ -213,14 +215,29 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 
 	output.close()
 
-#Parses input and determines the first section of LINE data
-if (sys.argv[1]=='-i'):
-	filename = sys.argv[2]
+i = 1
+input_file = None
+out_file = None
+layers = []
+while i<len(sys.argv):
+	flag = sys.argv[i]
+	if flag=='-i':
+		input_file = sys.argv[i+1]
+		output_file = input_file.repalce('.dxf','')+'.m'
+		i+=2
+	elif flag=='-o':
+		output_file = sys.argv[i+1]
+		i+=2
+	elif flag=='-f':
+		layers = sys.argv[i+1].split(',')
+		i+=2
 
-rawdxf = open(filename+'.dxf')
+#open the file and create the list of strings in the file
+rawdxf = open(input_file)
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
+#move through the input and determine the indices where all layers are specified.
 current_index = 0
 start_index = 0
 end_index = 0
@@ -232,11 +249,25 @@ for line in dxf_list:
 		wait = False
 
 	if not(wait) and current_line=='ENDSEC':
-		#end section, reset process to the next line and create this section
+		#found all layers, exit loop
 		end_index = current_index
 		break
 
 	current_index += 1
+
+# layer_data = {}
+# #now find the particular layers needed. Should combine into previous loop
+# line_list = []
+# for i in range(start_index, end_index):
+# 	line = dxf_list[i].strip()
+# 	if line=='AcDbEntity':
+# 		layer = dxf_list[i+2].strip()
+# 		if layer in layers:
+# 			line_list += dxf_list[i:i+24]
+# 	else:
+# 		i+=1 
+
+
 
 #Produces the list of lines that make up this first section
 (nodes,indices,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
