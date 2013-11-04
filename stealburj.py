@@ -6,26 +6,16 @@
 '''
 TODO
 
-Should probably make a lookup table for each xyz coordinate, so that I can quickly
-look up node number. This should help when converting the file to MATLAB script.
-
-Boundary is per node not per connection
-
-Remove layer 0 and any other guide layers
-
-Function to determine extra connections not specified in autocad due to lines being 
-within some small tolerance of each other
-
 Function to import individual layers at a time, or at least to organize and label 
 layers near each other in the .m file.
+	- Working prototype. Check correctness later
 
 Update the BOUN matrix creation
 
-input output for filenames
+Improve parser to be more robust to errors, and to alert user of errors
 
 store coordinates as floats instead of strings to reduce casting
 
-Add error messages when receiving bad input
 '''
 
 import math
