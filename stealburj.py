@@ -34,11 +34,11 @@ import sys
 '''
 Returns nodes and connection information, both as tables
 '''
-def build_connection_list(raw_list):
+def build_connection_list(raw_list,node_count):
 	#for now just going to use a 6-tuple, should probably make its own class later
 	section = []
 
-	node_count = 0
+	#node_count = 0
 	nodes = {}
 	indices = {}
 	connections = {}
@@ -81,7 +81,7 @@ def build_connection_list(raw_list):
 		else:
 			i+=1
 
-	return (nodes,indices,connections,conn_count)
+	return (nodes,indices,connections,conn_count,node_count)
 
 '''
 Interpolates the line between nodes to look for any other connections that need to
@@ -174,35 +174,43 @@ Takes in the nodes as a dict, connections as a dict, and connection count
 and generates the .m file with format expected by FEDEASLab. No Special 
 information right now like boundary conditions
 '''
-def write_fedeaslab_script(nodes,connections,conn_count):
-	output = open('testfile.m','w+')
+def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_connections):
+	output = open(output_file,'w+')
 
-	#clear memory 
+	#clear memory. Clearnstart should be sufficient, but for now do all of them.
+	output.write('clear all;\n')
+	output.write('close all;\n')
+	output.write('clc;\n')
 	output.write('CleanStart;\n\n')
 
-	#First create the XYZ table. One for each node
-	n = len(nodes)
-	output.write('XYZ = zeros('+str(n)+',3)\n')
+	#First initialize the tables.
+	output.write('XYZ = zeros('+str(total_nodes)+',3)\n')
+	output.write('CON = zeros('+str(total_connections)+',2)\n\n')
 
-	for (x,y,z) in nodes:
-		index = nodes[(x,y,z)]
-		output.write('XYZ('+str(index)+',:) = ['+str(x)+','+str(y)+','+str(z)+'];\n')
+	conn_count = 1
+	for layer in node_connection_data:
+		output.write('%'+'Start of '+layer+'\n')
 
-	output.write('\n')
+		(nodes,connections) = node_connection_data[layer]
+		for (x,y,z) in nodes:
+			index = nodes[(x,y,z)]
+			output.write('XYZ('+str(index)+',:) = ['+str(x)+','+str(y)+','+str(z)+'];\n')
 
-	#Now create the connection table.
-	count = 1
-	output.write('CON = zeros('+str(conn_count)+',2)\n')
-	for node in connections:
-		connect_list = connections[node]
-		for drain in connect_list:
-			output.write('CON('+str(count)+',:) = ['+str(node)+','+str(drain)+'];\n')
-			count += 1
+		output.write('\n')
 
-	output.write('\n')
+		#Now create the connection table.
+		#output.write('CON = zeros('+str(conn_count)+',2)\n')
+		for node in connections:
+			connect_list = connections[node]
+			for drain in connect_list:
+				output.write('CON('+str(conn_count)+',:) = ['+str(node)+','+str(drain)+'];\n')
+				conn_count += 1
+
+		output.write('%'+'End of '+layer+'\n')
+		output.write('\n')
 
 	#create boundary information for nodes.
-	output.write('BOUN = ones('+str(n)+',3);\n')
+	output.write('BOUN = ones('+str(total_nodes)+',3);\n')
 	output.write('BOUN(1,:) = [1, 1, 1]\n')
 	output.write('\n')
 
@@ -215,6 +223,7 @@ def write_fedeaslab_script(nodes,connections,conn_count):
 
 	output.close()
 
+#Parses input, determines input name, output name, and layers.
 i = 1
 input_file = None
 out_file = None
@@ -223,57 +232,58 @@ while i<len(sys.argv):
 	flag = sys.argv[i]
 	if flag=='-i':
 		input_file = sys.argv[i+1]
-		output_file = input_file.repalce('.dxf','')+'.m'
+		output_file = input_file.replace('.dxf','.m')
 		i+=2
 	elif flag=='-o':
 		output_file = sys.argv[i+1]
 		i+=2
-	elif flag=='-f':
+	elif flag=='-l':
 		layers = sys.argv[i+1].split(',')
 		i+=2
+	else:
+		print 'Unrecognized command '+flag
+		break
+
+#convert layer to table to easily look up index in layer list
+layer_table = {}
+for layer in layers:
+	layer_table[layer] = []
 
 #open the file and create the list of strings in the file
 rawdxf = open(input_file)
 dxf_list = [line.strip() for line in rawdxf]
 rawdxf.close()
 
-#move through the input and determine the indices where all layers are specified.
-current_index = 0
-start_index = 0
-end_index = 0
-wait = True
-for line in dxf_list:
-	current_line = line.strip()
-	if wait and current_line=='LINE':
-		start_index = current_index
-		wait = False
+#Searches through raw list to find all nodes associated with a layer, stores lists in a table
+while i<len(dxf_list):
+	line = dxf_list[i].strip()
+	if line=='LINE':
+		layer = dxf_list[i+8].strip()
+		if layer in layer_table:
+			layer_list = layer_table[layer]
+			layer_list = layer_list + dxf_list[i:i+23]
+			layer_table[layer] = layer_list
+			i += 23
+		else:
+			i += 1
+	else:
+		i += 1
 
-	if not(wait) and current_line=='ENDSEC':
-		#found all layers, exit loop
-		end_index = current_index
-		break
+#build node and connection data for each layer and store in dictionary
+node_connection_data = {}
+total_nodes = 0
+total_connections = 0
+node_count = 0
+for layer in layer_table:
+	(nodes,indices,connections,conn_count,node_count) = build_connection_list(layer_table[layer],node_count)
+	#Add intermediate connections if there are any
+	(connections,extra_count) = nodes_from_intersection(nodes,indices,connections)
 
-	current_index += 1
+	#set this layer
+	node_connection_data[layer] = (nodes,connections)
 
-# layer_data = {}
-# #now find the particular layers needed. Should combine into previous loop
-# line_list = []
-# for i in range(start_index, end_index):
-# 	line = dxf_list[i].strip()
-# 	if line=='AcDbEntity':
-# 		layer = dxf_list[i+2].strip()
-# 		if layer in layers:
-# 			line_list += dxf_list[i:i+24]
-# 	else:
-# 		i+=1 
+	total_nodes += len(nodes)
+	total_connections += (conn_count + extra_count)
 
-
-
-#Produces the list of lines that make up this first section
-(nodes,indices,connections,conn_count) = build_connection_list(dxf_list[start_index:end_index])
-
-#Add intermediate connections if there are any
-(connections,extra_count) = nodes_from_intersection(nodes,indices,connections)
-
-#produces matlab script to generate the structure in FEDEASLAB
-write_fedeaslab_script(nodes,connections,conn_count+extra_count)
+#uses the layer table to create node and connection data and then write it to layer_table
+write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_connections)
