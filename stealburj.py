@@ -1,7 +1,5 @@
 # Tyler Brabham
 # Steel Bridge autocad to FEDEASLAB converter.
-# Correctly finds the section in which a single group of lines is stated in the dxf file
-# 
 
 '''
 TODO
@@ -13,6 +11,8 @@ layers near each other in the .m file.
 Update the BOUN matrix creation
 
 Improve parser to be more robust to errors, and to alert user of errors
+
+Consider using OOP to improve encapsulation, readability, organization
 
 store coordinates as floats instead of strings to reduce casting
 
@@ -73,17 +73,13 @@ def build_connection_list(raw_list,node_count):
 
 	return (nodes,indices,connections,conn_count,node_count)
 
-'''
-Interpolates the line between nodes to look for any other connections that need to
-be added. If it finds extra connections, it breaks the current connection and makes
-two new ones. The process does not require the creation of any new nodes. Currently 
-making the assumption that any node that crosses the path of a connection will satisfy
-the linear equation. May need to do a kind of tolerance check instead.
-
-'''
 def nodes_from_intersection(nodes,indices,connections):
-	#for each connection check all nodes that might pass through the line
-	#continue the process until no change is made
+	'''Interpolates the line between nodes to look for any other connections that need to
+	be added. If it finds extra connections, it breaks the current connection and makes
+	two new ones. The process does not require the creation of any new nodes. Currently 
+	making the assumption that any node that crosses the path of a connection will satisfy
+	the linear equation. May need to do a kind of tolerance check instead.
+	'''
 	tol = .000001
 	change = True
 
@@ -159,12 +155,11 @@ def nodes_from_intersection(nodes,indices,connections):
 		connections = new_connections
 	return (connections,count)
 
-'''
-Takes in the nodes as a dict, connections as a dict, and connection count
-and generates the .m file with format expected by FEDEASLab. No Special 
-information right now like boundary conditions
-'''
 def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_connections):
+	'''Takes in the nodes as a dict, connections as a dict, and connection count
+	and generates the .m file with format expected by FEDEASLab. No Special 
+	information right now like boundary conditions
+	'''
 	output = open(output_file,'w+')
 
 	#clear memory. Clearnstart should be sufficient, but for now do all of them.
@@ -213,67 +208,75 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 
 	output.close()
 
-#Parses input, determines input name, output name, and layers.
-i = 1
-input_file = None
-out_file = None
-layers = []
-while i<len(sys.argv):
-	flag = sys.argv[i]
-	if flag=='-i':
-		input_file = sys.argv[i+1]
-		output_file = input_file.replace('.dxf','.m')
-		i+=2
-	elif flag=='-o':
-		output_file = sys.argv[i+1]
-		i+=2
-	elif flag=='-l':
-		layers = sys.argv[i+1].split(',')
-		i+=2
-	else:
-		print 'Unrecognized command '+flag
-		break
+##########################
+# Entry Point of Program #
+##########################
+def main(argv):
+	'''Parses input, determines input name, output name, and layers.
+	'''
+	i = 1
+	input_file = None
+	out_file = None
+	layers = []
+	while i<len(argv):
+		flag = argv[i]
+		if flag=='-i':
+			input_file = argv[i+1]
+			output_file = input_file.replace('.dxf','.m')
+			i+=2
+		elif flag=='-o':
+			output_file = argv[i+1]
+			i+=2
+		elif flag=='-l':
+			layers = argv[i+1].split(',')
+			i+=2
+		else:
+			print 'Unrecognized command '+flag
+			break
 
-#convert layer to table to easily look up index in layer list
-layer_table = {}
-for layer in layers:
-	layer_table[layer] = []
+	#convert layer to table to easily look up index in layer list
+	layer_table = {}
+	for layer in layers:
+		layer_table[layer] = []
 
-#open the file and create the list of strings in the file
-rawdxf = open(input_file)
-dxf_list = [line.strip() for line in rawdxf]
-rawdxf.close()
+	#open the file and create the list of strings in the file
+	rawdxf = open(input_file)
+	dxf_list = [line.strip() for line in rawdxf]
+	rawdxf.close()
 
-#Searches through raw list to find all nodes associated with a layer, stores lists in a table
-while i<len(dxf_list):
-	line = dxf_list[i].strip()
-	if line=='LINE':
-		layer = dxf_list[i+8].strip()
-		if layer in layer_table:
-			layer_list = layer_table[layer]
-			layer_list = layer_list + dxf_list[i:i+23]
-			layer_table[layer] = layer_list
-			i += 23
+	#Searches through raw list to find all nodes associated with a layer, stores lists in a table
+	while i<len(dxf_list):
+		line = dxf_list[i].strip()
+		if line=='LINE':
+			layer = dxf_list[i+8].strip()
+			if layer in layer_table:
+				layer_list = layer_table[layer]
+				layer_list = layer_list + dxf_list[i:i+23]
+				layer_table[layer] = layer_list
+				i += 23
+			else:
+				i += 1
 		else:
 			i += 1
-	else:
-		i += 1
 
-#build node and connection data for each layer and store in dictionary
-node_connection_data = {}
-total_nodes = 0
-total_connections = 0
-node_count = 0
-for layer in layer_table:
-	(nodes,indices,connections,conn_count,node_count) = build_connection_list(layer_table[layer],node_count)
-	#Add intermediate connections if there are any
-	(connections,extra_count) = nodes_from_intersection(nodes,indices,connections)
+	#build node and connection data for each layer and store in dictionary
+	node_connection_data = {}
+	total_nodes = 0
+	total_connections = 0
+	node_count = 0
+	for layer in layer_table:
+		(nodes,indices,connections,conn_count,node_count) = build_connection_list(layer_table[layer],node_count)
+		#Add intermediate connections if there are any
+		(connections,extra_count) = nodes_from_intersection(nodes,indices,connections)
 
-	#set this layer
-	node_connection_data[layer] = (nodes,connections)
+		#set this layer
+		node_connection_data[layer] = (nodes,connections)
 
-	total_nodes += len(nodes)
-	total_connections += (conn_count + extra_count)
+		total_nodes += len(nodes)
+		total_connections += (conn_count + extra_count)
 
-#uses the layer table to create node and connection data and then write it to layer_table
-write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_connections)
+	#uses the layer table to create node and connection data and then write it to layer_table
+	write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_connections)
+
+if __name__=="__main__":
+	main(sys.argv)
