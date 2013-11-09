@@ -16,6 +16,7 @@ Consider using OOP to improve encapsulation, readability, organization
 
 store coordinates as floats instead of strings to reduce casting
 
+Make UI question and answer form
 '''
 
 import math
@@ -169,8 +170,8 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 	output.write('CleanStart;\n\n')
 
 	#First initialize the tables.
-	output.write('XYZ = zeros('+str(total_nodes)+',3)\n')
-	output.write('CON = zeros('+str(total_connections)+',2)\n\n')
+	output.write('XYZ = zeros('+str(total_nodes)+',3);\n')
+	output.write('CON = zeros('+str(total_connections)+',2);\n\n')
 
 	conn_count = 1
 	for layer in node_connection_data:
@@ -196,11 +197,11 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 
 	#create boundary information for nodes.
 	output.write('BOUN = ones('+str(total_nodes)+',3);\n')
-	output.write('BOUN(1,:) = [1, 1, 1]\n')
+	output.write('BOUN(1,:) = [1, 1, 1];\n')
 	output.write('\n')
 
 	#create element name 
-	output.write('[ElemName{1:'+str(conn_count)+'}] = deal('+"'Truss'"+');\n')
+	output.write('[ElemName{1:'+str(conn_count-1)+'}] = deal('+"'Truss'"+');\n')
 	output.write('\n')
 
 	#create the model
@@ -217,6 +218,7 @@ def main(argv):
 	i = 1
 	input_file = None
 	out_file = None
+	all_layers = False
 	layers = []
 	while i<len(argv):
 		flag = argv[i]
@@ -228,7 +230,10 @@ def main(argv):
 			output_file = argv[i+1]
 			i+=2
 		elif flag=='-l':
-			layers = argv[i+1].split(',')
+			if argv[i+1]=='all':
+				all_layers = True
+			else:
+				layers = argv[i+1].split(',')
 			i+=2
 		else:
 			print 'Unrecognized command '+flag
@@ -249,7 +254,7 @@ def main(argv):
 		line = dxf_list[i].strip()
 		if line=='LINE':
 			layer = dxf_list[i+8].strip()
-			if layer in layer_table:
+			if layer in layer_table or all_layers==True:
 				layer_list = layer_table[layer]
 				layer_list = layer_list + dxf_list[i:i+23]
 				layer_table[layer] = layer_list
