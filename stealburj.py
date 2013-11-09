@@ -44,8 +44,8 @@ def get_layers(filename,dxf_list):
 	print "\nWould you like to import all layers?[y/n] "
 	all_layers = raw_input()=='y'
 
-	new_layers = {}
 	if all_layers==False:
+		new_layers = {}
 		for layer in layer_table:
 			import_layer = False
 			print "\nWould you like to import layer "+layer+"? [y/n]"
@@ -236,7 +236,7 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 	output.write('\n')
 
 	#create element name 
-	output.write('[ElemName{1:'+str(conn_count-1)+'}] = deal('+"'Truss'"+');\n')
+	output.write('[ElemName{1:'+str(total_connections)+'}] = deal('+"'Truss'"+');\n')
 	output.write('\n')
 
 	#create the model
