@@ -57,11 +57,9 @@ def get_layers(filename,dxf_list):
 	else:
 		return list(layer_table)
 
-'''
-Returns nodes and connection information, both as tables
-'''
 def build_connection_list(raw_list,node_count):
-	#for now just going to use a 6-tuple, should probably make its own class later
+	'''Returns nodes and connection information, both as tables
+	'''
 	section = []
 
 	#node_count = 0
