@@ -18,16 +18,50 @@ Consider using OOP to improve encapsulation, readability, organization
 
 store coordinates as floats instead of strings to reduce casting
 
+Make UI question and answer form
 '''
 
 import math
 import sys
 
-'''
-Returns nodes and connection information, both as tables
-'''
+def get_layers(filename,dxf_list):
+	'''Finds all layers in the dxf_list and asks user which layers to keep
+	'''
+	layer_table = {}
+
+	i = 0
+	while i<len(dxf_list):
+		line = dxf_list[i].strip()
+		if line=='LINE':
+			layer = dxf_list[i+8].strip()
+			if layer in layer_table:
+				pass
+			else:
+				layer_table[layer] = 0
+			i += 23
+		else:
+			i += 1
+
+	#get user input to determine which layers to import
+	print "\nWould you like to import all layers?[y/n] "
+	all_layers = raw_input()=='y'
+
+	if all_layers==False:
+		new_layers = {}
+		for layer in layer_table:
+			import_layer = False
+			print "\nWould you like to import layer "+layer+"? [y/n]"
+			import_layer = raw_input()=='y'
+			if import_layer==True:
+				new_layers[layer] = 0
+
+		return list(new_layers)
+	else:
+		return list(layer_table)
+
 def build_connection_list(raw_list,node_count):
-	#for now just going to use a 6-tuple, should probably make its own class later
+	'''Returns nodes and connection information, both as tables
+	'''
 	section = []
 
 	#node_count = 0
@@ -171,8 +205,8 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 	output.write('CleanStart;\n\n')
 
 	#First initialize the tables.
-	output.write('XYZ = zeros('+str(total_nodes)+',3)\n')
-	output.write('CON = zeros('+str(total_connections)+',2)\n\n')
+	output.write('XYZ = zeros('+str(total_nodes)+',3);\n')
+	output.write('CON = zeros('+str(total_connections)+',2);\n\n')
 
 	conn_count = 1
 	for layer in node_connection_data:
@@ -198,11 +232,11 @@ def write_fedeaslab_script(output_file,node_connection_data,total_nodes,total_co
 
 	#create boundary information for nodes.
 	output.write('BOUN = ones('+str(total_nodes)+',3);\n')
-	output.write('BOUN(1,:) = [1, 1, 1]\n')
+	output.write('BOUN(1,:) = [1, 1, 1];\n')
 	output.write('\n')
 
 	#create element name 
-	output.write('[ElemName{1:'+str(conn_count)+'}] = deal('+"'Truss'"+');\n')
+	output.write('[ElemName{1:'+str(total_connections)+'}] = deal('+"'Truss'"+');\n')
 	output.write('\n')
 
 	#create the model
@@ -218,7 +252,8 @@ def main(argv):
 	'''
 	i = 1
 	input_file = None
-	out_file = None
+	output_file = None
+	all_layers = False
 	layers = []
 	while i<len(argv):
 		flag = argv[i]
@@ -229,29 +264,31 @@ def main(argv):
 		elif flag=='-o':
 			output_file = argv[i+1]
 			i+=2
-		elif flag=='-l':
-			layers = argv[i+1].split(',')
-			i+=2
 		else:
 			print 'Unrecognized command '+flag
 			sys.exit(0)
-
-	#convert layer to table to easily look up index in layer list
-	layer_table = {}
-	for layer in layers:
-		layer_table[layer] = []
 
 	#open the file and create the list of strings in the file
 	rawdxf = open(input_file)
 	dxf_list = [line.strip() for line in rawdxf]
 	rawdxf.close()
 
+	print "\nImporting from file "+input_file+' and outputting to file '+output_file
+
+	#find all the layers in the input file, and create corresponding layer table 
+	layers = get_layers(input_file,dxf_list)
+	print "\nImporting "+str(len(layers))+" layers"
+
+	layer_table = {}
+	for layer in layers:
+		layer_table[layer] = []
+
 	#Searches through raw list to find all nodes associated with a layer, stores lists in a table
 	while i<len(dxf_list):
 		line = dxf_list[i].strip()
 		if line=='LINE':
 			layer = dxf_list[i+8].strip()
-			if layer in layer_table:
+			if layer in layer_table or all_layers==True:
 				layer_list = layer_table[layer]
 				layer_list = layer_list + dxf_list[i:i+23]
 				layer_table[layer] = layer_list
