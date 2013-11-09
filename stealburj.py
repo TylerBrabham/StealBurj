@@ -238,11 +238,16 @@ def main(argv):
 		else:
 			print 'Unrecognized command '+flag
 			break
-
+	
+	#get user input to determine which layers to import
+	Print "Importing from file "+input_file+' and outputting to file '+out_file
+	Print "\nWhich layers would you like to import? "
+	
 	#convert layer to table to easily look up index in layer list
 	layer_table = {}
 	for layer in layers:
 		layer_table[layer] = []
+		
 
 	#open the file and create the list of strings in the file
 	rawdxf = open(input_file)
