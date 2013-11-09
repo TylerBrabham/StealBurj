@@ -4,6 +4,8 @@
 '''
 TODO
 
+Get MATLAB working on ubuntu or windows
+
 Function to import individual layers at a time, or at least to organize and label 
 layers near each other in the .m file.
 	- Working prototype. Check correctness later
@@ -232,7 +234,7 @@ def main(argv):
 			i+=2
 		else:
 			print 'Unrecognized command '+flag
-			break
+			sys.exit(0)
 
 	#convert layer to table to easily look up index in layer list
 	layer_table = {}
