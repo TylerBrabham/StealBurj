@@ -22,6 +22,41 @@ Make UI question and answer form
 import math
 import sys
 
+def get_layers(filename,dxf_list):
+	'''Finds all layers in the dxf_list and asks user which layers to keep
+	'''
+	layer_table = {}
+
+	i = 0
+	while i<len(dxf_list):
+		line = dxf_list[i].strip()
+		if line=='LINE':
+			layer = dxf_list[i+8].strip()
+			if layer in layer_table:
+				pass
+			else:
+				layer_table[layer] = 0
+			i += 23
+		else:
+			i += 1
+
+	#get user input to determine which layers to import
+	print "\nWould you like to import all layers?[y/n] "
+	all_layers = raw_input()=='y'
+
+	new_layers = {}
+	if all_layers==False:
+		for layer in layer_table:
+			import_layer = False
+			print "\nWould you like to import layer "+layer+"? [y/n]"
+			import_layer = raw_input()=='y'
+			if import_layer==True:
+				new_layers[layer] = 0
+
+		return list(new_layers)
+	else:
+		return list(layer_table)
+
 '''
 Returns nodes and connection information, both as tables
 '''
@@ -217,7 +252,7 @@ def main(argv):
 	'''
 	i = 1
 	input_file = None
-	out_file = None
+	output_file = None
 	all_layers = False
 	layers = []
 	while i<len(argv):
@@ -229,30 +264,24 @@ def main(argv):
 		elif flag=='-o':
 			output_file = argv[i+1]
 			i+=2
-		elif flag=='-l':
-			if argv[i+1]=='all':
-				all_layers = True
-			else:
-				layers = argv[i+1].split(',')
-			i+=2
 		else:
 			print 'Unrecognized command '+flag
 			break
-	
-	#get user input to determine which layers to import
-	Print "Importing from file "+input_file+' and outputting to file '+out_file
-	Print "\nWhich layers would you like to import? "
-	
-	#convert layer to table to easily look up index in layer list
-	layer_table = {}
-	for layer in layers:
-		layer_table[layer] = []
-		
 
 	#open the file and create the list of strings in the file
 	rawdxf = open(input_file)
 	dxf_list = [line.strip() for line in rawdxf]
 	rawdxf.close()
+
+	print "\nImporting from file "+input_file+' and outputting to file '+output_file
+
+	#find all the layers in the input file, and create corresponding layer table 
+	layers = get_layers(input_file,dxf_list)
+	print "\nImporting "+str(len(layers))+" layers"
+
+	layer_table = {}
+	for layer in layers:
+		layer_table[layer] = []
 
 	#Searches through raw list to find all nodes associated with a layer, stores lists in a table
 	while i<len(dxf_list):
