@@ -19,6 +19,9 @@ Consider using OOP to improve encapsulation, readability, organization
 store coordinates as floats instead of strings to reduce casting
 
 Make UI question and answer form
+
+Fix layer issue. RIght now it makes new nodes when it should reuse previously
+made nodes at the same xyz coordinate
 '''
 
 import math
