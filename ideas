@@ -1,0 +1,13 @@
+-- Program initiated from StealBurj.py
+
+-- In main:
+	-- Determine if user wants to modify existing .m file, or create one from scratch
+
+	-- If creating one from scratch:
+		1. Determine the layers the user wants to pull from
+
+		2. Parse the layers into a list of strings from input dxf file
+
+		3. Create corresponding nodes and connections from the file in the bridge object.
+		Keep a master list of nodes for quick lookup.
+
